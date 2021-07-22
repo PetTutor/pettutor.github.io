@@ -199,7 +199,7 @@
 				},
 
 				pollFunction: function () {
-					axios.get("https://17ad3ni6m3.execute-api.us-east-2.amazonaws.com/PT_Get_Dev?action=SendFeed&deviceId=" + this.deviceId, this.axiosConfig)
+					axios.get("https://efc7az54dg.execute-api.us-east-2.amazonaws.com/ParseGet?action=SendFeed&deviceId=" + this.deviceId, this.axiosConfig)
 						.then(function (data) {
 							this.feedCommandCounter++;
 							var event = 'SUCCESS ' + new Date().toString() + ' -- ' + JSON.stringify(data);

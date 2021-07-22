@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<title>ESP 32 Testing</title>
+	<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+	<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+
+	<!-- Scripts -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.js"></script>
+
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+		integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+
+	<!-- Vue.js library loads -->
+
+	<script src="https://cdn.jsdelivr.net/npm/uiv@0.37.0/dist/uiv.min.js"
+		integrity="sha256-usb9qB/hsKIXPa4FPHpieTsBm/cmVgf+uHCY1T2aYHM=" crossorigin="anonymous"></script>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"
+		integrity="sha512-bZS47S7sPOxkjU/4Bt0zrhEtWx0y0CRkhEp8IckzK+ltifIIE9EMIMTuT/mEzoIMewUINruDBIR/jJnbguonqQ=="
+		crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+	<style type="text/css">
+		[v-cloak] {
+			display: none;
+		}
+
+		/* Transition classes */
+		.fade-enter-active,
+		.fade-leave-active {
+			transition: opacity .5s;
+		}
+
+		.fade-enter,
+		.fade-leave-active {
+			opacity: 0;
+		}
+	</style>
+</head>
+
+<body>
+
+	<div id="app" v-cloak>
+		<div class="" style="padding-left: 5em; padding-right: 5em;">
+			<div class="row">
+				<div class="col-12">
+					<h2>{{message}}</h2>
+				</div>
+			</div>
+
+			<div class="row form-group">
+				<div class="col-4">
+					<label for="" class="form-label" v-bind:class="{'is-invalid' : !deviceIdValid}">Enter Device
+						Id</label>
+				</div>
+				<div class="col-8">
+					<input type="text" maxlength="16" v-model="deviceId" class="form-control">
+				</div>
+			</div>
+
+			<div class="row form-group">
+				<div class="col-4">
+					<label for="" class="form-label">Number of seconds between feed commands</label>
+				</div>
+				<div class="col-8">
+					<input type="number" min="0" max="1000" v-model="secondsBetweenLoops" class="form-control">
+				</div>
+			</div>
+
+			<div class="row form-group">
+				<div class="col-4">
+					<label for="" class="form-label">Number of events retained</label>
+				</div>
+				<div class="col-8">
+					<input type="number" min="100" max="10000" v-model="numberOfEventsRetained" class="form-control">
+				</div>
+			</div>
+
+			<div class="row form-group">
+				<div class="col-12 text-center">
+					<button class="btn btn-warning" @click="clearClick()">
+						Clear
+					</button>
+					<button class="btn btn-secondary" @click="stopClick()">
+						Stop
+					</button>
+					<button class="btn btn-primary" v-bind:disabled="startButtonDisabled" @click="startClick()">
+						Start
+					</button>
+				</div>
+			</div>
+
+			<hr />
+
+			<div v-if="pollFunctionId >= 0 || (events && events.length > 0)">
+				<h4 style="display: inline-block">Sending feed command every {{ secondsBetweenLoops }} seconds to device
+					{{ deviceId }}</h4>
+				<img src="/img/spinner.gif" style="display: inline-block; max-height: 24px; margin-top: -6px; margin-left: 2em;" v-if="pollFunctionId >= 0" />
+
+				<p class="alert alert-info">
+					There are {{ events.length }}/{{ numberOfEventsRetained }} events. There were {{
+					feedCommandCounter }} feed commands sent successfully and {{ errorCounter }} errors. List sorted
+					newest to oldest</p>
+				</p>
+			</div>
+
+			<div v-if="events && events.length > 0"
+				style="max-height: 800px; overflow-y: scroll; border: 1px solid black; padding: .5em; border-radius: 5px;">
+				<table class="table table-striped">
+					<tr v-for="e in events">
+						<td>
+							<small> {{ e }} </small>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<script>
+
+		var app = new Vue({
+			el: "#app",
+			data: {
+				message: "ESP 32 Feed Command Send Test Utility",
+				deviceId: "",
+				userId: "",
+				secondsBetweenLoops: 5,
+				numberOfEventsRetained: 500,
+				pollFunctionId: -1,
+				events: [],
+				feedCommandCounter: 0,
+				errorCounter: 0,
+			},
+
+			beforeMount: function () {
+
+			},
+
+			computed: {
+				deviceIdValid: function () {
+					if (this.deviceId && this.deviceId.length >= 8)
+						return true;
+
+					return false;
+				},
+				startButtonDisabled: function () {
+					if (!this.deviceIdValid)
+						return true;
+
+					if (this.pollFunctionId >= 0)
+						return true;
+
+					return false;
+				},
+				axiosConfig: function () {
+					return {
+						headers: {
+							"Content-Type": "application/json"
+						}
+					}
+
+				}
+			},
+
+			methods: {
+
+				startClick: function () {
+					this.clear();
+					this.beginPolling();
+				},
+
+				stopClick: function () {
+					this.endPolling();
+				},
+
+				clearClick: function() {
+					this.clear();
+				},
+
+				clear: function() {
+					this.errorCounter = 0;
+					this.feedCommandCounter = 0;
+					this.events = [];
+				},
+
+				beginPolling: function () {
+					this.pollFunctionId = setInterval(this.pollFunction, this.secondsBetweenLoops * 1000);
+					this.pollFunction(); // first polling cycle
+				},
+
+				pollFunction: function () {
+					axios.get("https://17ad3ni6m3.execute-api.us-east-2.amazonaws.com/PT_Get_Dev?action=SendFeed&deviceId=" + this.deviceId, this.axiosConfig)
+						.then(function (data) {
+							this.feedCommandCounter++;
+							var event = 'SUCCESS ' + new Date().toString() + ' -- ' + JSON.stringify(data);
+							this.appendEvent(event);
+						}.bind(this))
+						.catch(function (err) {
+							this.errorCounter++;
+							console.error(err);
+							var event = '--ERROR-- ' + new Date().toString() + ' -- ' + JSON.stringify(err);
+							this.appendEvent(event);
+						}.bind(this))
+				},
+
+				endPolling: function () {
+					clearInterval(this.pollFunctionId);
+					this.pollFunctionId = -1;
+				},
+
+				appendEvent: function (event) {
+					if (this.events && this.events.length > 0) {
+						this.events.unshift(event);
+
+						// remove if greater than our total length
+						if (this.events.length > this.numberOfEventsRetained) {
+							var eventsToDelete = this.events.length - this.numberOfEventsRetained;
+							this.events.splice(this.numberOfEventsRetained - 1, eventsToDelete);
+						}
+
+					} else {
+						this.events = [];
+						this.events.push(event);
+					}
+
+				}
+
+
+
+			}
+		});
+
+	</script>
+
+</body>
+
+</html>
